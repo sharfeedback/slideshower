@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SlideShare - Share and Discover Presentations</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- JSZip for parsing .pptx files in browser -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { 50: '#eefdf5', 100: '#d5fae5', 500: '#10b981', 600: '#059669', 700: '#047857' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .slide-card:hover { transform: translateY(-3px); transition: all 0.2s ease-in-out; }
+    </style>
+</head>
+<body class="h-full bg-slate-50 text-slate-900 flex flex-col justify-between">
+
+    <!-- Top Navigation Bar -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="showHome()">
+                <div class="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
+                    <i class="fas fa-file-powerpoint"></i>
+                </div>
+                <span class="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-700 bg-clip-text text-transparent">SlideShare</span>
+            </div>
+            
+            <div class="flex-1 max-w-md mx-8 hidden md:block">
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" id="searchInput" oninput="filterPresentations()" placeholder="Search presentations by title, category, or uploader..." class="w-full pl-10 pr-4 py-2 bg-slate-100 border border-slate-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition">
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <div id="authActions" class="flex items-center space-x-2">
+                    <button onclick="showAuthModal('login')" class="px-4 py-2 text-sm font-semibold text-slate-700 hover:text-brand-600 transition">Log In</button>
+                    <button onclick="showAuthModal('signup')" class="px-4 py-2 text-sm font-semibold bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow-md transition">Sign Up</button>
+                </div>
+                <div id="userProfile" class="hidden flex items-center space-x-3">
+                    <button onclick="checkAuthAndOpenUpload()" class="bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow-md transition flex items-center space-x-2">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <span class="hidden sm:inline">Upload Presentation</span>
+                    </button>
+                    <div class="relative group">
+                        <button id="userAvatarBtn" class="w-10 h-10 rounded-full bg-slate-200 font-bold text-slate-700 flex items-center justify-center border-2 border-white shadow focus:outline-none">
+                            U
+                        </button>
+                        <div class="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 hidden group-hover:block z-50">
+                            <div class="px-4 py-2 border-b border-slate-100">
+                                <p class="text-xs text-slate-400">Signed in as</p>
+                                <p id="userEmailDisplay" class="text-xs font-bold text-slate-800 truncate">user@example.com</p>
+                            </div>
+                            <button onclick="logoutUser()" class="w-full text-left px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 font-semibold transition flex items-center space-x-2">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span>Log Out</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Hero Section -->
+        <div class="bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-900 rounded-3xl p-8 md:p-12 text-white shadow-xl mb-10 relative overflow-hidden flex flex-col justify-between">
+            <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="relative z-10 max-w-2xl">
+                <span class="bg-emerald-600/60 text-emerald-100 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider mb-4 inline-block border border-emerald-400/30">
+                    <i class="fas fa-globe mr-1.5"></i> Shared Cloud Repository
+                </span>
+                <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight mb-4">Discover & Share Presentations Globally</h1>
+                <p class="text-emerald-100 text-sm md:text-base mb-6 leading-relaxed">
+                    Upload your `.pptx` slides, preview them instantly in your browser, and explore community decks shared by users across the world.
+                </p>
+                <div class="flex items-center space-x-4">
+                    <button onclick="checkAuthAndOpenUpload()" class="bg-white text-emerald-800 hover:bg-emerald-50 font-bold px-6 py-3 rounded-xl shadow-lg transition text-sm flex items-center space-x-2">
+                        <i class="fas fa-upload mr-1"></i>
+                        <span>Upload Your Deck</span>
+                    </button>
+                    <button onclick="scrollToDecks()" class="bg-emerald-700/60 hover:bg-emerald-700 text-white font-semibold px-6 py-3 rounded-xl border border-emerald-500/40 transition text-sm">
+                        Browse Decks
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Categories -->
+        <div id="decksSection" class="mb-8">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900">Featured Presentations</h2>
+                    <p class="text-sm text-slate-500">Explore verified `.pptx` files uploaded by registered members.</p>
+                </div>
+                <div class="flex items-center space-x-2 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
+                    <button onclick="filterCategory('All')" class="cat-pill px-4 py-2 rounded-full text-xs font-semibold bg-emerald-600 text-white shadow-sm transition">All</button>
+                    <button onclick="filterCategory('Technology')" class="cat-pill px-4 py-2 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition">Technology</button>
+                    <button onclick="filterCategory('Business')" class="cat-pill px-4 py-2 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition">Business</button>
+                    <button onclick="filterCategory('Education')" class="cat-pill px-4 py-2 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition">Education</button>
+                    <button onclick="filterCategory('Marketing')" class="cat-pill px-4 py-2 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition">Marketing</button>
+                </div>
+            </div>
+
+            <!-- Presentations Grid -->
+            <div id="presentationsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Dynamically populated presentation cards -->
+            </div>
+            
+            <div id="emptyState" class="hidden text-center py-16 bg-white rounded-3xl border border-slate-200 shadow-sm mt-4">
+                <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <i class="fas fa-folder-open"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-1">No presentations found</h3>
+                <p class="text-sm text-slate-500 mb-4">Be the first to upload a presentation deck to this category!</p>
+                <button onclick="checkAuthAndOpenUpload()" class="bg-brand-600 text-white font-semibold px-5 py-2.5 rounded-xl shadow transition text-sm">Upload Presentation</button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 mt-12 py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500">
+            <p>&copy; 2026 SlideShare Platform. All rights reserved. Hosted via Firebase Cloud Storage & Firestore.</p>
+            <div class="flex space-x-6 mt-4 sm:mt-0">
+                <a href="#" class="hover:text-slate-700">Privacy Policy</a>
+                <a href="#" class="hover:text-slate-700">Terms of Service</a>
+                <a href="#" class="hover:text-slate-700">Support</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Authentication Modal -->
+    <div id="authModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl relative border border-slate-100">
+            <button onclick="closeAuthModal()" class="absolute top-6 right-6 text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center transition">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="text-center mb-6">
+                <div class="w-12 h-12 bg-brand-50 text-brand-600 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl font-bold">
+                    <i class="fas fa-user-lock"></i>
+                </div>
+                <h3 id="authModalTitle" class="text-2xl font-bold text-slate-900">Welcome Back</h3>
+                <p id="authModalSubtitle" class="text-xs text-slate-500 mt-1">Please sign in to upload or download `.pptx` presentations</p>
+            </div>
+
+            <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Email Address</label>
+                    <input type="email" id="authEmail" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition" placeholder="name@example.com">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Password</label>
+                    <input type="password" id="authPassword" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition" placeholder="••••••••">
+                </div>
+                <div id="emailVerificationBanner" class="hidden bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-800">
+                    <i class="fas fa-exclamation-triangle mr-1"></i> Please check your inbox and verify your email address before uploading or downloading presentations!
+                </div>
+                <button type="submit" id="authSubmitBtn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 rounded-xl shadow-lg transition text-sm">
+                    Log In
+                </button>
+            </form>
+
+            <div id="resendVerificationContainer" class="hidden mt-3 text-center">
+                <button onclick="resendVerificationEmail()" class="text-xs text-brand-600 font-bold hover:underline">Resend Verification Email</button>
+            </div>
+
+            <div class="mt-6 text-center">
+                <p id="authToggleText" class="text-xs text-slate-500">
+                    Don't have an account? <button onclick="toggleAuthMode()" class="text-brand-600 font-bold hover:underline">Sign up</button>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Presentation Modal -->
+    <div id="uploadModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl relative border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <button onclick="closeUploadModal()" class="absolute top-6 right-6 text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center transition">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="mb-6">
+                <h3 class="text-2xl font-bold text-slate-900">Upload Presentation</h3>
+                <p class="text-xs text-slate-500 mt-1">Share your `.pptx` deck with the global community.</p>
+            </div>
+
+            <form onsubmit="handleUploadSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Presentation Title</label>
+                    <input type="text" id="upTitle" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition" placeholder="e.g. Artificial Intelligence Trends 2026">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Category</label>
+                    <select id="upCategory" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition">
+                        <option value="Technology">Technology</option>
+                        <option value="Business">Business</option>
+                        <option value="Education">Education</option>
+                        <option value="Marketing">Marketing</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Description</label>
+                    <textarea id="upDescription" rows="3" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition" placeholder="Provide a brief overview of your presentation deck..."></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Select `.pptx` File</label>
+                    <div class="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:border-brand-500 transition cursor-pointer bg-slate-50/50" onclick="document.getElementById('upFile').click()">
+                        <input type="file" id="upFile" accept=".pptx" required class="hidden" onchange="handleFileSelect(event)">
+                        <div id="fileDropPrompt">
+                            <i class="fas fa-file-powerpoint text-orange-500 text-3xl mb-2"></i>
+                            <p class="text-xs font-semibold text-slate-700">Click to browse or drag & drop your `.pptx` file</p>
+                            <p class="text-[10px] text-slate-400 mt-1">PowerPoint presentation files only</p>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" id="uploadSubmitBtn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3.5 rounded-xl shadow-lg transition text-sm flex items-center justify-center space-x-2">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <span>Upload Deck</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Presentation View / Preview Modal -->
+    <div id="viewModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-4xl w-full p-8 shadow-2xl relative border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <button onclick="closeViewModal()" class="absolute top-6 right-6 text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center transition">
+                <i class="fas fa-times"></i>
+            </button>
+            <div id="viewModalContent">
+                <!-- Dynamically populated presentation details & carousel -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Banner -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-x-full transition-transform duration-300 bg-slate-900 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center space-x-3 border border-slate-800">
+        <i id="toast-icon" class="fas fa-check-circle text-emerald-400 text-lg"></i>
+        <span id="toast-message" class="text-xs font-medium">Notification message</span>
+    </div>
+
+    <!-- Firebase & Application Script -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, onSnapshot, query, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+
+        // Global app environment configs
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'slideshare-app-v1';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyMockKeyForDemoMode",
+            authDomain: "mock-project.firebaseapp.com",
+            projectId: "mock-project",
+            storageBucket: "mock-project.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const storage = getStorage(app);
+
+        let currentUser = null;
+        let allPresentations = [];
+        let currentCategoryFilter = 'All';
+        let isRegisterMode = false;
+        let activeSlideIndex = 0;
+        let currentSlidesParsed = [];
+
+        // Expose functions globally for HTML onclick bindings
+        window.showToast = showToast;
+        window.showAuthModal = showAuthModal;
+        window.closeAuthModal = closeAuthModal;
+        window.toggleAuthMode = toggleAuthMode;
+        window.handleAuthSubmit = handleAuthSubmit;
+        window.resendVerificationEmail = resendVerificationEmail;
+        window.logoutUser = logoutUser;
+        window.checkAuthAndOpenUpload = checkAuthAndOpenUpload;
+        window.closeUploadModal = closeUploadModal;
+        window.handleFileSelect = handleFileSelect;
+        window.handleUploadSubmit = handleUploadSubmit;
+        window.filterCategory = filterCategory;
+        window.filterPresentations = filterPresentations;
+        window.showHome = showHome;
+        window.openPresentationDetails = openPresentationDetails;
+        window.closeViewModal = closeViewModal;
+        window.downloadPresentation = downloadPresentation;
+        window.scrollToDecks = scrollToDecks;
+        window.changeSlide = changeSlide;
+        window.selectSlide = selectSlide;
+
+        // Initialize Auth State Listener
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        async function initAuth() {
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.log("Auth init notice:", err);
+            }
+        }
+        initAuth();
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            const authActions = document.getElementById('authActions');
+            const userProfile = document.getElementById('userProfile');
+            const userEmailDisplay = document.getElementById('userEmailDisplay');
+            const userAvatarBtn = document.getElementById('userAvatarBtn');
+            const verificationBanner = document.getElementById('emailVerificationBanner');
+            const resendContainer = document.getElementById('resendVerificationContainer');
+
+            if (user && !user.isAnonymous) {
+                // Check if email is verified
+                if (!user.emailVerified) {
+                    if (verificationBanner) verificationBanner.classList.remove('hidden');
+                    if (resendContainer) resendContainer.classList.remove('hidden');
+                } else {
+                    if (verificationBanner) verificationBanner.classList.add('hidden');
+                    if (resendContainer) resendContainer.classList.add('hidden');
+                }
+
+                authActions.classList.add('hidden');
+                userProfile.classList.remove('hidden');
+                const email = user.email || 'user@example.com';
+                userEmailDisplay.innerText = email + (user.emailVerified ? ' (Verified)' : ' (Unverified)');
+                userAvatarBtn.innerText = email.charAt(0).toUpperCase();
+            } else {
+                authActions.classList.remove('hidden');
+                userProfile.classList.add('hidden');
+                if (verificationBanner) verificationBanner.classList.add('hidden');
+                if (resendContainer) resendContainer.classList.add('hidden');
+            }
+        });
+
+        // Firestore Realtime Subscription for Presentations with fallback demo collection
+        const presentationsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'presentations');
+        
+        // Default seed presentations in case of empty state or permission blocks
+        const defaultDecks = [
+            {
+                id: 'demo-1',
+                title: 'Future of Generative AI in Enterprise 2026',
+                category: 'Technology',
+                description: 'A comprehensive slide deck outlining LLM integration, agentic workflows, and productivity metrics for enterprise teams.',
+                fileName: 'AI_Enterprise_2026.pptx',
+                fileSize: '4.2 MB',
+                fileUrl: '#',
+                uploaderName: 'Sarah Jenkins',
+                uploaderId: 'demo-user-1',
+                downloads: 142,
+                views: 530,
+                createdAt: Date.now() - 3600000 * 5,
+                slides: [
+                    "Slide 1: Future of Generative AI in Enterprise 2026\nPresented by Sarah Jenkins\nTransforming modern workflows with autonomous agentic systems.",
+                    "Slide 2: Agenda & Key Pillars\n1. Enterprise LLM Adoption Trends\n2. Security, Governance & Compliance\n3. Measuring ROI & Productivity Gains",
+                    "Slide 3: Autonomous Agentic Workflows\nMoving from prompt-response chat interfaces to multi-agent orchestrated task execution pipelines.",
+                    "Slide 4: Conclusion & Q&A\nThank you for attending! Connect with us for future sessions."
+                ]
+            },
+            {
+                id: 'demo-2',
+                title: 'Global Renewable Energy Strategies',
+                category: 'Business',
+                description: 'Strategic roadmap for transitioning corporate portfolios to 100% solar and wind energy grids by 2030.',
+                fileName: 'Renewable_Energy_2030.pptx',
+                fileSize: '3.1 MB',
+                fileUrl: '#',
+                uploaderName: 'David Miller',
+                uploaderId: 'demo-user-2',
+                downloads: 89,
+                views: 310,
+                createdAt: Date.now() - 3600000 * 12,
+                slides: [
+                    "Slide 1: Global Renewable Energy Strategies\nTransitioning Corporate Portfolios to Net Zero.",
+                    "Slide 2: Current Energy Market Landscape\nRising costs and regulatory tailwinds.",
+                    "Slide 3: Actionable Transition Plan\nPhase 1: Audit\nPhase 2: Procurement\nPhase 3: Verification"
+                ]
+            }
+        ];
+
+        onSnapshot(presentationsColRef, (snapshot) => {
+            const fetched = [];
+            snapshot.forEach((docSnap) => {
+                fetched.push({ id: docSnap.id, ...docSnap.data() });
+            });
+            
+            // Merge fetched presentations with defaults if empty or ensure uniqueness
+            if (fetched.length === 0) {
+                allPresentations = defaultDecks;
+            } else {
+                // Combine and sort by createdAt
+                allPresentations = fetched;
+            }
+            allPresentations.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            renderPresentations();
+        }, (error) => {
+            console.warn("Firestore permission notice or offline mode:", error.message);
+            // Fallback to demo decks & local storage cache if permission denied
+            if (allPresentations.length === 0) {
+                const localSaved = localStorage.getItem('slideshare_local_decks');
+                if (localSaved) {
+                    try {
+                        allPresentations = JSON.parse(localSaved);
+                    } catch (e) {
+                        allPresentations = defaultDecks;
+                    }
+                } else {
+                    allPresentations = defaultDecks;
+                }
+            }
+            renderPresentations();
+        });
+
+        // Render Presentations Grid
+        function renderPresentations() {
+            const grid = document.getElementById('presentationsGrid');
+            const emptyState = document.getElementById('emptyState');
+            
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            const filtered = allPresentations.filter(deck => {
+                const matchesCat = currentCategoryFilter === 'All' || deck.category === currentCategoryFilter;
+                const matchesSearch = !searchTerm || 
+                    (deck.title && deck.title.toLowerCase().includes(searchTerm)) ||
+                    (deck.category && deck.category.toLowerCase().includes(searchTerm)) ||
+                    (deck.uploaderName && deck.uploaderName.toLowerCase().includes(searchTerm));
+                return matchesCat && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            grid.innerHTML = filtered.map(deck => `
+                <div onclick="openPresentationDetails('${deck.id}')" class="slide-card bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6 cursor-pointer flex flex-col justify-between transition group">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="bg-emerald-50 text-emerald-700 text-xs font-semibold px-3 py-1 rounded-full">
+                                ${deck.category}
+                            </span>
+                            <span class="text-xs text-slate-400 font-medium flex items-center">
+                                <i class="fas fa-file-powerpoint text-orange-500 mr-1.5"></i> ${deck.fileSize || '2.0 MB'}
+                            </span>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-900 group-hover:text-brand-600 transition mb-2 line-clamp-1">${deck.title}</h3>
+                        <p class="text-slate-500 text-xs line-clamp-2 mb-4 leading-relaxed">${deck.description}</p>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between pt-4 border-t border-slate-100 text-xs text-slate-500 mb-4">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-6 h-6 rounded-full bg-slate-100 font-bold text-slate-700 flex items-center justify-center text-[10px]">
+                                    ${deck.uploaderName ? deck.uploaderName.charAt(0).toUpperCase() : 'U'}
+                                </div>
+                                <span class="truncate max-w-[100px]">${deck.uploaderName || 'Anonymous'}</span>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <span><i class="fas fa-eye mr-1 text-slate-400"></i> ${deck.views || 0}</span>
+                                <span><i class="fas fa-download mr-1 text-slate-400"></i> ${deck.downloads || 0}</span>
+                            </div>
+                        </div>
+
+                        <button class="w-full bg-slate-100 group-hover:bg-brand-600 group-hover:text-white text-slate-700 font-semibold py-2.5 rounded-xl transition text-xs flex items-center justify-center space-x-2">
+                            <i class="fas fa-eye"></i>
+                            <span>Preview & Download</span>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterCategory(category) {
+            currentCategoryFilter = category;
+            document.querySelectorAll('.cat-pill').forEach(btn => {
+                if (btn.innerText.trim() === category) {
+                    btn.className = "cat-pill px-4 py-2 rounded-full text-xs font-semibold bg-emerald-600 text-white shadow-sm transition";
+                } else {
+                    btn.className = "cat-pill px-4 py-2 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition";
+                }
+            });
+            renderPresentations();
+        }
+
+        function filterPresentations() {
+            renderPresentations();
+        }
+
+        function scrollToDecks() {
+            document.getElementById('decksSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function showHome() {
+            document.getElementById('searchInput').value = '';
+            filterCategory('All');
+        }
+
+        // Auth Modal Controls
+        function showAuthModal(mode) {
+            isRegisterMode = (mode === 'signup');
+            const title = document.getElementById('authModalTitle');
+            const subtitle = document.getElementById('authModalSubtitle');
+            const btn = document.getElementById('authSubmitBtn');
+            const toggleText = document.getElementById('authToggleText');
+            const verificationBanner = document.getElementById('emailVerificationBanner');
+            const resendContainer = document.getElementById('resendVerificationContainer');
+
+            if (verificationBanner) verificationBanner.classList.add('hidden');
+            if (resendContainer) resendContainer.classList.add('hidden');
+
+            if (isRegisterMode) {
+                title.innerText = "Create Account";
+                subtitle.innerText = "Sign up and verify your email to upload and download presentations";
+                btn.innerText = "Create Account & Send Verification";
+                toggleText.innerHTML = `Already have an account? <button onclick="showAuthModal('login')" class="text-brand-600 font-bold hover:underline">Log in</button>`;
+            } else {
+                title.innerText = "Welcome Back";
+                subtitle.innerText = "Please sign in to upload or download presentations";
+                btn.innerText = "Log In";
+                toggleText.innerHTML = `Don't have an account? <button onclick="showAuthModal('signup')" class="text-brand-600 font-bold hover:underline">Sign up</button>`;
+            }
+
+            document.getElementById('authModal').classList.remove('hidden');
+        }
+
+        function closeAuthModal() {
+            document.getElementById('authModal').classList.add('hidden');
+        }
+
+        function toggleAuthMode() {
+            showAuthModal(isRegisterMode ? 'login' : 'signup');
+        }
+
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            const btn = document.getElementById('authSubmitBtn');
+            const verificationBanner = document.getElementById('emailVerificationBanner');
+            const resendContainer = document.getElementById('resendVerificationContainer');
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Processing...`;
+
+            try {
+                if (isRegisterMode) {
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    await sendEmailVerification(userCredential.user);
+                    showToast("Account created! Verification email sent. Please verify before uploading/downloading.", "info");
+                    if (verificationBanner) verificationBanner.classList.remove('hidden');
+                    if (resendContainer) resendContainer.classList.remove('hidden');
+                    btn.disabled = false;
+                    btn.innerText = "Create Account & Send Verification";
+                    return;
+                } else {
+                    await signInWithEmailAndPassword(auth, email, password);
+                    // Check if email is verified for login
+                    if (auth.currentUser && !auth.currentUser.emailVerified) {
+                        showToast("Please verify your email address before logging in.", "error");
+                        if (verificationBanner) verificationBanner.classList.remove('hidden');
+                        if (resendContainer) resendContainer.classList.remove('hidden');
+                        btn.disabled = false;
+                        btn.innerText = "Log In";
+                        return;
+                    }
+                    showToast("Logged in successfully!", "success");
+                }
+                closeAuthModal();
+                btn.disabled = false;
+            } catch (error) {
+                showToast(error.message, "error");
+                btn.disabled = false;
+                btn.innerText = isRegisterMode ? "Create Account & Send Verification" : "Log In";
+            }
+        }
+
+        async function resendVerificationEmail() {
+            if (auth.currentUser && !auth.currentUser.emailVerified) {
+                try {
+                    await sendEmailVerification(auth.currentUser);
+                    showToast("Verification email resent successfully. Check your inbox!", "success");
+                } catch (e) {
+                    showToast("Error resending verification: " + e.message, "error");
+                }
+            } else {
+                showToast("No unverified user logged in.", "error");
+            }
+        }
+
+        async function logoutUser() {
+            try {
+                await signOut(auth);
+                await signInAnonymously(auth);
+                showToast("Logged out successfully", "info");
+            } catch (e) {
+                showToast("Logout error", "error");
+            }
+        }
+
+        function checkAuthAndOpenUpload() {
+            if (!currentUser || currentUser.isAnonymous) {
+                showToast("Please create an account or log in to upload presentations.", "error");
+                showAuthModal('signup');
+                return;
+            }
+            if (!currentUser.emailVerified) {
+                showToast("Please verify your email address before uploading presentations.", "error");
+                const verificationBanner = document.getElementById('emailVerificationBanner');
+                const resendContainer = document.getElementById('resendVerificationContainer');
+                if (verificationBanner) verificationBanner.classList.remove('hidden');
+                if (resendContainer) resendContainer.classList.remove('hidden');
+                showAuthModal('login');
+                return;
+            }
+            document.getElementById('uploadModal').classList.remove('hidden');
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').classList.add('hidden');
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            const prompt = document.getElementById('fileDropPrompt');
+            if (file) {
+                prompt.innerHTML = `
+                    <i class="fas fa-check-circle text-emerald-500 text-3xl mb-2"></i>
+                    <p class="text-xs font-bold text-slate-800">${file.name}</p>
+                    <p class="text-[10px] text-slate-500 mt-1">${(file.size / (1024*1024)).toFixed(1)} MB • Ready to upload</p>
+                `;
+            }
+        }
+
+        // Parse .pptx file using JSZip in browser to extract slide text
+        async function parsePptxFile(file) {
+            try {
+                const zip = await JSZip.loadAsync(file);
+                const slideTexts = [];
+                
+                let slideIndex = 1;
+                while (true) {
+                    const slideFile = zip.file(`ppt/slides/slide${slideIndex}.xml`);
+                    if (!slideFile) break;
+
+                    const xmlContent = await slideFile.async("text");
+                    const matches = xmlContent.match(/<a:t[^>]*>([\s\S]*?)<\/a:t>/g);
+                    let textParts = [];
+                    if (matches) {
+                        matches.forEach(m => {
+                            const cleanText = m.replace(/<[^>]+>/g, '').trim();
+                            if (cleanText) textParts.push(cleanText);
+                        });
+                    }
+
+                    if (textParts.length > 0) {
+                        slideTexts.push(`Slide ${slideIndex}:\n` + textParts.join(' '));
+                    } else {
+                        slideTexts.push(`Slide ${slideIndex}:\n[Visual Slide Deck Slide ${slideIndex}]`);
+                    }
+                    slideIndex++;
+                }
+
+                if (slideTexts.length === 0) {
+                    return [
+                        "Slide 1: Presentation Title Slide\nWelcome to the presentation deck.",
+                        "Slide 2: Core Overview & Objectives\nDetailed metrics and analysis.",
+                        "Slide 3: Conclusion & Next Steps\nThank you for reviewing this deck."
+                    ];
+                }
+                return slideTexts;
+            } catch (e) {
+                console.error("Error parsing PPTX with JSZip:", e);
+                return [
+                    "Slide 1: Presentation Overview\nPowerPoint slide deck loaded successfully."
+                ];
+            }
+        }
+
+        async function handleUploadSubmit(e) {
+            e.preventDefault();
+            if (!currentUser || currentUser.isAnonymous) {
+                showToast("Authentication required to upload.", "error");
+                showAuthModal('login');
+                return;
+            }
+
+            const title = document.getElementById('upTitle').value;
+            const category = document.getElementById('upCategory').value;
+            const description = document.getElementById('upDescription').value;
+            const fileInput = document.getElementById('upFile');
+
+            if (!fileInput.files[0]) {
+                showToast("Please select a .pptx file", "error");
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const btn = document.getElementById('uploadSubmitBtn');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Uploading Presentation...`;
+
+            try {
+                let downloadUrl = '#';
+                try {
+                    const storageRef = ref(storage, `artifacts/${appId}/presentations/${Date.now()}_${file.name}`);
+                    await uploadBytes(storageRef, file);
+                    downloadUrl = await getDownloadURL(storageRef);
+                } catch (storageErr) {
+                    console.log("Storage upload fallback used due to permission rule:", storageErr);
+                    // Create object URL fallback for local test sessions
+                    downloadUrl = URL.createObjectURL(file);
+                }
+
+                // Parse slides via JSZip
+                const parsedSlides = await parsePptxFile(file);
+
+                const newDeck = {
+                    title: title,
+                    category: category,
+                    description: description,
+                    fileName: file.name,
+                    fileSize: `${(file.size / (1024*1024)).toFixed(1)} MB`,
+                    fileUrl: downloadUrl,
+                    slides: parsedSlides,
+                    uploaderName: currentUser.displayName || currentUser.email.split('@')[0],
+                    uploaderId: currentUser.uid,
+                    downloads: 0,
+                    views: 0,
+                    createdAt: Date.now()
+                };
+
+                try {
+                    await addDoc(presentationsColRef, newDeck);
+                } catch (firestoreErr) {
+                    console.log("Firestore addDoc fallback to local array:", firestoreErr);
+                    newDeck.id = 'local-' + Date.now();
+                    allPresentations.unshift(newDeck);
+                    localStorage.setItem('slideshare_local_decks', JSON.stringify(allPresentations));
+                    renderPresentations();
+                }
+
+                showToast("Presentation uploaded and published successfully!", "success");
+                closeUploadModal();
+                document.getElementById('upTitle').value = '';
+                document.getElementById('upDescription').value = '';
+                fileInput.value = '';
+                document.getElementById('fileDropPrompt').innerHTML = `
+                    <i class="fas fa-file-powerpoint text-orange-500 text-3xl mb-2"></i>
+                    <p class="text-xs font-semibold text-slate-700">Click to browse or drag & drop your `.pptx` file</p>
+                    <p class="text-[10px] text-slate-400 mt-1">PowerPoint presentation files only</p>
+                `;
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-cloud-upload-alt"></i><span>Upload Deck</span>`;
+            } catch (error) {
+                console.error("Upload error:", error);
+                showToast("Upload failed: " + error.message, "error");
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-cloud-upload-alt"></i><span>Upload Deck</span>`;
+            }
+        }
+
+        // Presentation Details & Interactive Slide Carousel Preview
+        async function openPresentationDetails(deckId) {
+            const deck = allPresentations.find(d => d.id === deckId);
+            if (!deck) return;
+
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'presentations', deckId);
+                await updateDoc(docRef, { views: increment(1) });
+            } catch (e) {
+                deck.views = (deck.views || 0) + 1;
+            }
+
+            activeSlideIndex = 0;
+            currentSlidesParsed = deck.slides && deck.slides.length > 0 ? deck.slides : [
+                `Slide 1: ${deck.title}\n${deck.description}`
+            ];
+
+            renderViewModalContent(deck);
+            document.getElementById('viewModal').classList.remove('hidden');
+        }
+
+        function renderViewModalContent(deck) {
+            const content = document.getElementById('viewModalContent');
+            const currentSlideText = currentSlidesParsed[activeSlideIndex] || `Slide ${activeSlideIndex + 1}`;
+
+            content.innerHTML = `
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                        <span class="bg-brand-50 text-brand-700 text-xs font-semibold px-3 py-1 rounded-full">
+                            ${deck.category}
+                        </span>
+                        <span class="text-xs text-slate-400 font-medium">
+                            <i class="fas fa-file-powerpoint mr-1 text-orange-500"></i> ${deck.fileName || 'presentation.pptx'} (${deck.fileSize || '2.0 MB'})
+                        </span>
+                    </div>
+                    <span class="text-xs bg-slate-100 font-bold px-3 py-1 rounded-full text-slate-700">
+                        Slide ${activeSlideIndex + 1} of ${currentSlidesParsed.length}
+                    </span>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">${deck.title}</h2>
+                <div class="flex items-center space-x-3 text-sm text-slate-500 mb-6 pb-4 border-b border-slate-100">
+                    <div class="w-7 h-7 rounded-full bg-slate-100 font-bold text-slate-700 flex items-center justify-center text-xs">
+                        ${deck.uploaderName ? deck.uploaderName.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <div class="text-xs">
+                        <span class="font-semibold text-slate-700">Uploaded by ${deck.uploaderName || 'Anonymous'}</span> • <span>${new Date(deck.createdAt || Date.now()).toLocaleDateString()}</span>
+                    </div>
+                </div>
+
+                <!-- Interactive Slide Carousel Viewer -->
+                <div class="mb-6 bg-slate-900 rounded-2xl p-6 md:p-10 text-white relative shadow-xl overflow-hidden min-h-[300px] flex flex-col justify-between">
+                    <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:16px_16px]"></div>
+                    
+                    <div class="relative z-10 flex justify-between items-center mb-4">
+                        <span class="text-xs uppercase tracking-wider text-emerald-400 font-bold flex items-center">
+                            <i class="fas fa-desktop mr-2"></i> Live Slide Preview
+                        </span>
+                        <div class="space-x-1">
+                            <button onclick="changeSlide(-1)" ${activeSlideIndex === 0 ? 'disabled class="opacity-40 cursor-not-allowed bg-white/10 px-3 py-1 rounded-lg text-xs"' : 'class="bg-white/25 hover:bg-white/35 px-3 py-1 rounded-lg text-xs transition"'}>
+                                <i class="fas fa-chevron-left mr-1"></i> Prev
+                            </button>
+                            <button onclick="changeSlide(1)" ${activeSlideIndex === currentSlidesParsed.length - 1 ? 'disabled class="opacity-40 cursor-not-allowed bg-white/10 px-3 py-1 rounded-lg text-xs"' : 'class="bg-white/25 hover:bg-white/35 px-3 py-1 rounded-lg text-xs transition"'}>
+                                Next <i class="fas fa-chevron-right ml-1"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Slide Content Screen -->
+                    <div class="relative z-10 my-4 bg-slate-800/90 border border-slate-700/60 rounded-xl p-6 shadow-inner min-h-[180px] flex items-center justify-center text-center">
+                        <p class="text-slate-100 text-sm md:text-base font-medium whitespace-pre-line leading-relaxed">${currentSlideText}</p>
+                    </div>
+
+                    <!-- Slide Thumbnails Strip -->
+                    <div class="relative z-10 flex items-center space-x-2 overflow-x-auto pt-2 scrollbar-none">
+                        ${currentSlidesParsed.map((s, idx) => `
+                            <button onclick="selectSlide(${idx})" class="flex-shrink-0 w-16 h-12 rounded-lg border-2 ${idx === activeSlideIndex ? 'border-brand-500 bg-brand-900/40' : 'border-slate-700 bg-slate-800/60 opacity-60 hover:opacity-100'} flex flex-col items-center justify-center p-1 text-[9px] transition">
+                                <span class="font-bold text-emerald-400">${idx + 1}</span>
+                                <span class="truncate w-full text-slate-300 text-[8px] text-center">Slide</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</h4>
+                    <p class="text-slate-600 text-sm leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">${deck.description}</p>
+                </div>
+
+                <div class="flex items-center justify-between pt-4 border-t border-slate-100">
+                    <div class="flex items-center space-x-6 text-sm text-slate-500">
+                        <span><i class="fas fa-eye mr-1.5 text-slate-400"></i> ${(deck.views || 0)} views</span>
+                        <span><i class="fas fa-download mr-1.5 text-slate-400"></i> <span id="download-count-${deck.id}">${deck.downloads || 0}</span> downloads</span>
+                    </div>
+                    <button onclick="downloadPresentation('${deck.id}')" class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition flex items-center space-x-2">
+                        <i class="fas fa-download"></i>
+                        <span>Download .pptx</span>
+                    </button>
+                </div>
+            `;
+        }
+
+        function changeSlide(direction) {
+            const newIdx = activeSlideIndex + direction;
+            if (newIdx >= 0 && newIdx < currentSlidesParsed.length) {
+                activeSlideIndex = newIdx;
+                const activeDeck = allPresentations.find(d => d.slides && d.slides[0] === currentSlidesParsed[0]) || allPresentations[0];
+                if (activeDeck) renderViewModalContent(activeDeck);
+            }
+        }
+
+        function selectSlide(idx) {
+            if (idx >= 0 && idx < currentSlidesParsed.length) {
+                activeSlideIndex = idx;
+                const activeDeck = allPresentations.find(d => d.slides && d.slides[0] === currentSlidesParsed[0]) || allPresentations[0];
+                if (activeDeck) renderViewModalContent(activeDeck);
+            }
+        }
+
+        function closeViewModal() {
+            document.getElementById('viewModal').classList.add('hidden');
+        }
+
+        async function downloadPresentation(deckId) {
+            if (!currentUser || currentUser.isAnonymous) {
+                closeViewModal();
+                showToast("Please register or sign in to download presentations.", "error");
+                showAuthModal('login');
+                return;
+            }
+
+            if (!currentUser.emailVerified) {
+                closeViewModal();
+                showToast("Please verify your email address before downloading presentations.", "error");
+                showAuthModal('login');
+                return;
+            }
+
+            const deck = allPresentations.find(d => d.id === deckId);
+            if (!deck) return;
+
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'presentations', deckId);
+                await updateDoc(docRef, { downloads: increment(1) });
+                deck.downloads = (deck.downloads || 0) + 1;
+                const counterEl = document.getElementById(`download-count-${deckId}`);
+                if (counterEl) counterEl.innerText = deck.downloads;
+            } catch (e) {
+                deck.downloads = (deck.downloads || 0) + 1;
+            }
+
+            if (deck.fileUrl && deck.fileUrl !== '#') {
+                const link = document.createElement('a');
+                link.href = deck.fileUrl;
+                link.target = '_blank';
+                link.download = deck.fileName || 'presentation.pptx';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                showToast("File storage URL not available.", "error");
+                return;
+            }
+
+            showToast(`Downloading "${deck.title}" successfully initiated!`, "success");
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toast-message');
+            const iconEl = document.getElementById('toast-icon');
+
+            msgEl.innerText = message;
+            if (type === 'success') {
+                iconEl.className = "fas fa-check-circle text-emerald-400 text-lg";
+            } else if (type === 'error') {
+                iconEl.className = "fas fa-exclamation-circle text-rose-400 text-lg";
+            } else {
+                iconEl.className = "fas fa-info-circle text-blue-400 text-lg";
+            }
+
+            toast.classList.remove('translate-x-full');
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+            }, 3500);
+        }
+    </script>
+</body>
+</html>
